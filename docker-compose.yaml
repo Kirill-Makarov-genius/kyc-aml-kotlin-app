@@ -1,0 +1,11 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kyc_postgres
+    environment:
+      POSTGRES_USER: kyc_user
+      POSTGRES_PASSWORD: kyc_password
+      POSTGRES_DB: kyc_db
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
