@@ -42,6 +42,24 @@ class KycRepository(private val dsl: DSLContext){
         )
     }
 
+    suspend fun findAll() : List<KycRequest> = withContext(Dispatchers.IO){
+
+        val table = KYC_REQUESTS
+
+        dsl.selectFrom(table)
+            .fetchInto(KycRequest::class.java)
+
+    }
+
+    suspend fun updateStatus(id: String, newStatus: KycStatus) = withContext(Dispatchers.IO){
+
+        dsl.update(KYC_REQUESTS)
+            .set(KYC_REQUESTS.STATUS, newStatus.name)
+            .where(KYC_REQUESTS.ID.eq(UUID.fromString(id)))
+            .execute()
+
+    }
+
 
 
 }
