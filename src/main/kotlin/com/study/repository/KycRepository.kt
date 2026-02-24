@@ -1,6 +1,7 @@
 package com.study.repository
 
 import com.study.generated.tables.references.KYC_REQUESTS
+import com.study.mapper.toModel
 import com.study.model.KycRequest
 import com.study.model.KycStatus
 import kotlinx.coroutines.Dispatchers
@@ -29,17 +30,12 @@ class KycRepository(private val dsl: DSLContext){
 
         val table = KYC_REQUESTS
 
-        val record = dsl.selectFrom(table)
+        dsl.selectFrom(table)
             .where(table.ID.eq(UUID.fromString(id)))
-            .fetchOne() ?: return@withContext null
+            .fetchOne()
+            ?.toModel()
 
-        KycRequest(
-            id = record.id.toString(),
-            firstName = record.firstName!!,
-            lastName = record.lastName!!,
-            passportNumber = record.passportNumber!!,
-            status = KycStatus.valueOf(record.status!!)
-        )
+
     }
 
     suspend fun findAll() : List<KycRequest> = withContext(Dispatchers.IO){

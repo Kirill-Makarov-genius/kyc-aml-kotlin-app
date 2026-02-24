@@ -11,7 +11,7 @@ data class KycRequest(
     val lastName: String,
     val passportNumber: String,
     val status: KycStatus = KycStatus.PENDING,
-    val riscScore: Int = 0,
+    val riskScore: Int = 0,
     val internalComment: String? = null
 
 
