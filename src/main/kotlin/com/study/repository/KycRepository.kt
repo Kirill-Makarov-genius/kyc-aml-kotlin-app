@@ -51,10 +51,12 @@ class KycRepository(private val dsl: DSLContext){
 
     }
 
-    suspend fun updateStatus(id: String, newStatus: KycStatus) = withContext(Dispatchers.IO){
+    suspend fun updateRiskData(id: String, newStatus: KycStatus, riskScore: Int, comment: String) = withContext(Dispatchers.IO){
 
         dsl.update(KYC_REQUESTS)
             .set(KYC_REQUESTS.STATUS, newStatus.name)
+            .set(KYC_REQUESTS.RISK_SCORE, riskScore)
+            .set(KYC_REQUESTS.INTERNAL_COMMENT, comment)
             .where(KYC_REQUESTS.ID.eq(UUID.fromString(id)))
             .execute()
 

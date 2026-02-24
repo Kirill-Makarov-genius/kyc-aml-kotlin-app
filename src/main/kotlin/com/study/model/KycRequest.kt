@@ -10,7 +10,10 @@ data class KycRequest(
     val firstName: String,
     val lastName: String,
     val passportNumber: String,
-    val status: KycStatus = KycStatus.PENDING
+    val status: KycStatus = KycStatus.PENDING,
+    val riscScore: Int = 0,
+    val internalComment: String? = null
+
 
 )
 enum class KycStatus{
