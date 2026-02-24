@@ -1,5 +1,6 @@
 package com.study.service
 
+import com.study.exception.KycRequestNotFoundException
 import com.study.model.KycRequest
 import com.study.model.KycStatus
 import com.study.repository.KycRepository
@@ -32,8 +33,8 @@ class KycService (private val repository: KycRepository){
         return repository.findAll()
     }
 
-    suspend fun getRequest(id: String): KycRequest?{
-        return repository.findById(id)
+    suspend fun getRequest(id: String): KycRequest{
+        return repository.findById(id) ?: throw KycRequestNotFoundException(id)
     }
 
 

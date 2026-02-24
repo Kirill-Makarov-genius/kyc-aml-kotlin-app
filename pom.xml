@@ -56,6 +56,11 @@
             <version>1.6.3</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-status-pages-jvm</artifactId>
+            <version>${ktor_version}</version>
+        </dependency>
         <!-- DATABASE (Postgres + Hikari + JOOQ + Flyway) -->
         <dependency>
             <groupId>org.postgresql</groupId>

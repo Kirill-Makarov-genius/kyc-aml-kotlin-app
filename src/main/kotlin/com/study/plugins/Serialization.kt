@@ -1,4 +1,4 @@
-package com.study
+package com.study.plugins
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
