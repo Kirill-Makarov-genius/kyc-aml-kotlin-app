@@ -55,7 +55,19 @@
             <artifactId>kotlinx-serialization-json</artifactId>
             <version>1.6.3</version>
         </dependency>
-
+        <!-- Validation ktor-->
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-request-validation-jvm</artifactId>
+            <version>${ktor_version}</version>
+        </dependency>
+        <!-- Logging ktor-->
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-call-logging-jvm</artifactId>
+            <version>${ktor_version}</version>
+        </dependency>
+        <!-- Handler exceptions ktor-->
         <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-status-pages-jvm</artifactId>

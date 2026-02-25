@@ -8,7 +8,7 @@ sealed class KycException(
 ) : RuntimeException(message)
 
 class KycRequestNotFoundException(id: String) :
-        KycException("KYC requst with ID $id not found", HttpStatusCode.NotFound)
+        KycException("KYC request with ID $id not found", HttpStatusCode.NotFound)
 
 class KycValidationException(message: String) :
         KycException(message, HttpStatusCode.BadRequest)

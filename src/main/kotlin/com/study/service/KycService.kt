@@ -1,6 +1,7 @@
 package com.study.service
 
 import com.study.exception.KycRequestNotFoundException
+import com.study.exception.KycValidationException
 import com.study.model.KycRequest
 import com.study.model.KycStatus
 import com.study.repository.KycRepository
@@ -11,13 +12,16 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 
 class KycService (private val repository: KycRepository){
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val log = LoggerFactory.getLogger(javaClass)
 
     suspend fun createRequest(request: KycRequest): KycRequest{
 
+        log.info("Creating new KYC request for passport: {}", maskPassport(request.passportNumber))
         val savedRequest = repository.save(request)
 
         // Launch async checking
@@ -68,8 +72,9 @@ class KycService (private val repository: KycRepository){
         val comment = "Checked by FNS & MVD. Score: $totalRisk"
 
         repository.updateRiskData(request.id, newStatus, totalRisk, comment)
-
-
     }
+
+    private fun maskPassport(p: String): String = p.take(2) + "** ***" + p.takeLast(2)
+
 
 }
