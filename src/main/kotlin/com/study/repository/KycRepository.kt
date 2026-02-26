@@ -1,5 +1,6 @@
 package com.study.repository
 
+import com.study.generated.tables.references.KYC_AUDIT_LOG
 import com.study.generated.tables.references.KYC_REQUESTS
 import com.study.mapper.toModel
 import com.study.model.KycRequest
@@ -7,6 +8,7 @@ import com.study.model.KycStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import java.util.UUID
 
 class KycRepository(private val dsl: DSLContext){
@@ -47,14 +49,29 @@ class KycRepository(private val dsl: DSLContext){
 
     }
 
-    suspend fun updateRiskData(id: String, newStatus: KycStatus, riskScore: Int, comment: String) = withContext(Dispatchers.IO){
+    suspend fun updateRiskData(id: String, oldStatus: KycStatus, newStatus: KycStatus, riskScore: Int, comment: String) = withContext(Dispatchers.IO){
 
-        dsl.update(KYC_REQUESTS)
-            .set(KYC_REQUESTS.STATUS, newStatus.name)
-            .set(KYC_REQUESTS.RISK_SCORE, riskScore)
-            .set(KYC_REQUESTS.INTERNAL_COMMENT, comment)
-            .where(KYC_REQUESTS.ID.eq(UUID.fromString(id)))
-            .execute()
+        dsl.transaction { configuration ->
+            val tx = DSL.using(configuration)
+            val requestId = UUID.fromString(id)
+
+
+            tx.update(KYC_REQUESTS)
+                .set(KYC_REQUESTS.RISK_SCORE, riskScore)
+                .set(KYC_REQUESTS.STATUS, newStatus.name)
+                .set(KYC_REQUESTS.INTERNAL_COMMENT, comment)
+                .where(KYC_REQUESTS.ID.eq(requestId))
+                .execute()
+
+            tx.insertInto(KYC_AUDIT_LOG)
+                .set(KYC_AUDIT_LOG.ID, UUID.randomUUID())
+                .set(KYC_AUDIT_LOG.REQUEST_ID, requestId)
+                .set(KYC_AUDIT_LOG.OLD_STATUS, oldStatus.name)
+                .set(KYC_AUDIT_LOG.NEW_STATUS, newStatus.name)
+                .set(KYC_AUDIT_LOG.REASON, comment)
+                .execute()
+
+        }
 
     }
 

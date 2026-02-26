@@ -71,7 +71,7 @@ class KycService (private val repository: KycRepository){
         val newStatus = if (totalRisk > 40) KycStatus.BLOCKED else KycStatus.VERIFIED
         val comment = "Checked by FNS & MVD. Score: $totalRisk"
 
-        repository.updateRiskData(request.id, newStatus, totalRisk, comment)
+        repository.updateRiskData(request.id,request.status, newStatus, totalRisk, comment)
     }
 
     private fun maskPassport(p: String): String = p.take(2) + "** ***" + p.takeLast(2)

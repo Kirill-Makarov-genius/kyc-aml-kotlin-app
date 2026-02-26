@@ -1,5 +1,6 @@
 package com.study.com.study.repository
 
+import com.study.generated.tables.references.KYC_AUDIT_LOG
 import com.study.model.KycRequest
 import com.study.model.KycStatus
 import com.study.repository.KycRepository
@@ -9,16 +10,18 @@ import kotlinx.coroutines.runBlocking
 import org.flywaydb.core.Flyway
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 @Testcontainers
 class KycRepositoryTest {
@@ -113,6 +116,7 @@ class KycRepositoryTest {
         // Act
         repository.updateRiskData(
             request.id,
+            KycStatus.PENDING,
             KycStatus.BLOCKED,
             85,
             "Highly suspicious"
@@ -131,5 +135,84 @@ class KycRepositoryTest {
 
     }
 
+
+    @Test
+    fun `should update status and create audit log entry automatically`() = runBlocking {
+
+        // Arrange
+        val requestId = UUID.randomUUID().toString()
+        val initialRequest = KycRequest(
+            id = requestId,
+            firstName = "Transactional",
+            lastName = "User",
+            passportNumber = "7777 123456"
+        )
+        repository.save(initialRequest)
+
+        // Act
+
+        repository.updateRiskData(
+            requestId,
+            initialRequest.status,
+            KycStatus.VERIFIED,
+            15,
+            "Audit test"
+        )
+
+        // Assert kyc_requests table
+        val updatedRequest = repository.findById(requestId)
+        requireNotNull(updatedRequest)
+
+        assertEquals(KycStatus.VERIFIED, updatedRequest.status)
+
+        // Assert kyc_audit_logs table
+        val auditRecord = dsl.selectFrom(KYC_AUDIT_LOG)
+            .where(KYC_AUDIT_LOG.REQUEST_ID.eq(UUID.fromString(requestId)))
+            .fetchOne()
+
+        requireNotNull(auditRecord) {"Audit record should be created"}
+
+        assertAll(
+            {assertEquals(KycStatus.PENDING.name, auditRecord.oldStatus)},
+            {assertEquals(KycStatus.VERIFIED.name, auditRecord.newStatus)},
+            {assertEquals("Audit test", auditRecord.reason)}
+        )
+    }
+
+
+    @Test
+    fun `should rollback transaction if log entry fails`() = runBlocking {
+
+
+        // Arrange
+        val requestId = UUID.randomUUID().toString();
+        repository.save(KycRequest(
+            requestId,
+            "Rollback",
+            "Test",
+            "0000 123456"
+        ))
+
+        // Act
+
+        val longComment = "A".repeat(500)
+
+        assertThrows<DataAccessException>{
+            runBlocking { repository.updateRiskData(
+                requestId,
+                KycStatus.PENDING,
+                KycStatus.BLOCKED,
+                99,
+                longComment
+            ) }
+        }
+
+        val requestAfterFailedUpdate = repository.findById(requestId)
+        assertEquals(KycStatus.PENDING, requestAfterFailedUpdate?.status,
+            "Status should NOT be updated because transaction must rollback")
+
+        val auditCount = dsl.fetchCount(KYC_AUDIT_LOG, KYC_AUDIT_LOG.ID.eq(UUID.fromString(requestId)))
+        assertEquals(0, auditCount, "Audit log should be empty")
+    }
 
 }
