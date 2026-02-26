@@ -13,7 +13,7 @@ object DatabaseFactory {
     fun init(): DSLContext{
         val config = HikariConfig().apply {
 
-            jdbcUrl = "jdbc:postgresql://localhost:5433/kyc_db"
+            jdbcUrl = System.getenv("DB_URL") ?: "jdbc:postgresql://localhost:5433/kyc_db"
             username = "kyc_user"
             password = "kyc_password"
             driverClassName = "org.postgresql.Driver"

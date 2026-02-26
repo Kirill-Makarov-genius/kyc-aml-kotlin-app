@@ -1,37 +1,69 @@
-# kyc-aml-app
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+# KYC & AML Backend Service
 
-Here are some useful links to get you started:
+Микросервис для автоматизации банковских комплаенс-процессов: идентификации клиентов (KYC) и противодействия отмыванию денег (AML). Проект разработан в рамках подготовки к стажировке в команде **Yandex KYC & AML**.
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+## 🚀 Стек технологий
 
-## Features
+*   **Language:** Kotlin 2.0 (Coroutines, Serialization)
+*   **Framework:** Ktor (Netty engine)
+*   **Database:** PostgreSQL
+*   **Data Access:** jOOQ (Typesafe SQL generation)
+*   **Migrations:** Flyway
+*   **Monitoring:** Micrometer + Prometheus + Grafana
+*   **Infrastructure:** Docker & Docker Compose
+*   **Testing:** JUnit 5, Mockk, TestContainers
 
-Here's a list of features included in this project:
+## ⚙️ Основные возможности и архитектура
 
-| Name                                                                   | Description                                                                        |
-| ------------------------------------------------------------------------|------------------------------------------------------------------------------------ |
-| [Content Negotiation](https://start.ktor.io/p/content-negotiation)     | Provides automatic content conversion according to Content-Type and Accept headers |
-| [Routing](https://start.ktor.io/p/routing)                             | Provides a structured routing DSL                                                  |
-| [kotlinx.serialization](https://start.ktor.io/p/kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library                     |
+### 1. Асинхронный AML-пайплайн
+Реализован паттерн **Scatter-Gather** с использованием Kotlin Coroutines (`async/await`). При создании заявки сервис параллельно опрашивает имитированные внешние системы (ФНС, МВД), что сокращает время ответа системы.
 
-## Building & Running
+### 2. Транзакционный аудит (Audit Log)
+Все изменения статусов заявок защищены транзакциями на уровне базы данных (`dsl.transaction`). Каждое обновление сопровождается записью в неизменяемую таблицу аудита, обеспечивая целостность данных и историю изменений.
 
-To build or run the project, use one of the following tasks:
+### 3. Наблюдаемость (Observability)
+*   Централизованный сбор метрик JVM и HTTP через **Micrometer**.
+*   Бизнес-метрики (количество одобренных/заблокированных заявок).
+*   Готовый дашборд в **Grafana** для мониторинга p95/p99 задержек и состояния ресурсов.
 
-| Task                                                           | Description       |
-| ----------------------------------------------------------------|------------------- |
-| `mvn test`                                                     | Run the tests     |
-| `mvn package`                                                  | Build the project |
-| `java -jar target/kyc-aml-app-0.0.1-jar-with-dependencies.jar` | Run the server    |
+### 4. Инженерная культура
+*   **Validation:** Строгая валидация входящих DTO (формат паспорта через Regex).
+*   **Error Handling:** Централизованная обработка исключений через `StatusPages`.
+*   **Logging:** Маскирование персональных данных (ПДн) в логах.
+*   **Testing:** Интеграционные тесты на реальной БД в Docker через **TestContainers**.
 
-If the server starts successfully, you'll see the following output:
+## 🛠 Запуск проекта
 
+### Требования
+*   Docker & Docker Compose
+*   JDK 21
+*   Maven
+
+### Быстрый старт
+1. Соберите проект локально для генерации кода jOOQ:
+   ```bash
+   mvn clean compile
+   ```
+2. Запустите всю инфраструктуру (App, DB, Prometheus, Grafana):
+   ```bash
+   docker-compose up --build -d
+   ```
+
+### Эндпоинты API
+*   `POST /kyc` — Создание заявки на проверку.
+*   `GET /kyc/{id}` — Получение текущего статуса и риск-скора.
+*   `GET /metrics` — Метрики в формате Prometheus.
+
+## 📊 Мониторинг
+После запуска инфраструктуры доступны:
+*   **Prometheus:** `http://localhost:9090`
+*   **Grafana:** `http://localhost:3000` (login: `admin`, pass: `admin`)
+    *   *Примечание:* Для визуализации используется импортированный дашборд JVM (ID: 4701).
+
+## 🧪 Тестирование
+Для запуска интеграционных тестов выполните:
+```bash
+mvn test
 ```
-2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
-```
-
+Тесты автоматически поднимут временный контейнер PostgreSQL, применят миграции Flyway и проверят атомарность транзакций.

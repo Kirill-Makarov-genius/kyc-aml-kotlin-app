@@ -2,6 +2,7 @@ package com.study
 
 import org.slf4j.event.Level
 import com.study.config.DatabaseFactory
+import com.study.plugins.configureMonitoring
 import com.study.plugins.configureRouting
 import com.study.plugins.configureSerialization
 import com.study.plugins.configureStatusPages
@@ -35,10 +36,9 @@ fun Application.module() {
     val repository = KycRepository(dsl)
     val service = KycService(repository)
 
+    configureMonitoring()
     configureValidation()
     configureStatusPages()
-
     configureSerialization()
-
     configureRouting(service)
 }

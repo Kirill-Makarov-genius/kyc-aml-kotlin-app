@@ -4,7 +4,9 @@ import com.study.exception.KycRequestNotFoundException
 import com.study.exception.KycValidationException
 import com.study.model.KycRequest
 import com.study.model.KycStatus
+import com.study.plugins.appMicrometerRegistry
 import com.study.repository.KycRepository
+import io.micrometer.core.instrument.Counter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +17,15 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
 class KycService (private val repository: KycRepository){
+
+
+    private val blockedCounter = Counter.builder("kyc.decisions.total")
+        .description("Total number of KYC decisions")
+        .tag("result", "BLOCKED")
+        .register(appMicrometerRegistry)
+    private val verifiedCounter = Counter.builder("kyc.decisions.total")
+        .tag("result", "VERIFIED")
+        .register(appMicrometerRegistry)
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val log = LoggerFactory.getLogger(javaClass)
@@ -67,8 +78,14 @@ class KycService (private val repository: KycRepository){
 
         val timeTaken = System.currentTimeMillis() - startTime
         print("Procedures finished in $timeTaken ms. Total risk: $totalRisk")
+        val newStatus = if (totalRisk > 40){
+            blockedCounter.increment()
+            KycStatus.BLOCKED
+        } else{
+            verifiedCounter.increment()
+            KycStatus.VERIFIED
+        }
 
-        val newStatus = if (totalRisk > 40) KycStatus.BLOCKED else KycStatus.VERIFIED
         val comment = "Checked by FNS & MVD. Score: $totalRisk"
 
         repository.updateRiskData(request.id,request.status, newStatus, totalRisk, comment)
