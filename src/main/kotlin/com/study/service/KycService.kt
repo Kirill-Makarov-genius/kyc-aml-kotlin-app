@@ -2,6 +2,8 @@ package com.study.service
 
 import com.study.exception.KycRequestNotFoundException
 import com.study.exception.KycValidationException
+import com.study.kafka.KycProducer
+import com.study.model.KycBatchItem
 import com.study.model.KycRequest
 import com.study.model.KycStatus
 import com.study.plugins.appMicrometerRegistry
@@ -16,7 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
-class KycService (private val repository: KycRepository){
+class KycService (private val repository: KycRepository, private val producer: KycProducer){
 
 
     private val blockedCounter = Counter.builder("kyc.decisions.total")
@@ -27,18 +29,18 @@ class KycService (private val repository: KycRepository){
         .tag("result", "VERIFIED")
         .register(appMicrometerRegistry)
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private val log = LoggerFactory.getLogger(javaClass)
 
     suspend fun createRequest(request: KycRequest): KycRequest{
 
+        // Save new request to DB with status PENDING
         log.info("Creating new KYC request for passport: {}", maskPassport(request.passportNumber))
         val savedRequest = repository.save(request)
 
-        // Launch async checking
-        serviceScope.launch {
-            performAmlCheck(savedRequest)
-        }
+        // Send event to kafka using our producer
+        producer.sendRequestCreated(savedRequest.id)
+        log.info("Request {} sent to Kafka for AML processing", savedRequest.id)
 
         return savedRequest
 
@@ -63,9 +65,10 @@ class KycService (private val repository: KycRepository){
         return if (passport.endsWith("9")) 50 else 0
     }
 
-    private suspend fun performAmlCheck(request: KycRequest) = coroutineScope {
+     suspend fun calculateAMLRiskScore(requestId: String) = coroutineScope {
 
-        println("Starting async procedures for ${request.id}")
+        val request = repository.findById(requestId) ?: throw KycRequestNotFoundException(requestId)
+        log.info("Starting async procedures for ${request.id}")
         val startTime = System.currentTimeMillis()
 
         val fnsDeferred = async { checkFns(request.passportNumber) }
@@ -77,7 +80,7 @@ class KycService (private val repository: KycRepository){
         val totalRisk = fnsScore + mvdScore
 
         val timeTaken = System.currentTimeMillis() - startTime
-        print("Procedures finished in $timeTaken ms. Total risk: $totalRisk")
+        log.info("Procedures finished in $timeTaken ms. Total risk: $totalRisk")
         val newStatus = if (totalRisk > 40){
             blockedCounter.increment()
             KycStatus.BLOCKED
@@ -88,9 +91,18 @@ class KycService (private val repository: KycRepository){
 
         val comment = "Checked by FNS & MVD. Score: $totalRisk"
 
-        repository.updateRiskData(request.id,request.status, newStatus, totalRisk, comment)
-    }
+         KycBatchItem(
+             requestId,
+             request.status,
+             newStatus,
+             totalRisk,
+             comment
+         )
+     }
 
+    suspend fun updateBatchAmlScoreOfRequests(batchOfRequests: MutableList<KycBatchItem>){
+        repository.batchUpdateRiskData(batchOfRequests)
+    }
     private fun maskPassport(p: String): String = p.take(2) + "** ***" + p.takeLast(2)
 
 

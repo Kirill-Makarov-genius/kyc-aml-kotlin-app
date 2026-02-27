@@ -9,9 +9,13 @@ import io.ktor.server.plugins.requestvalidation.RequestValidationException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
+import org.jooq.exception.DataAccessException
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 @Serializable
 data class ErrorResponse(val error: String, val code: String)
+val logger: Logger = LoggerFactory.getLogger("Exceptions logger")
 
 fun Application.configureStatusPages(){
     install(StatusPages) {
@@ -30,7 +34,7 @@ fun Application.configureStatusPages(){
             )
         }
 
-        exception<org.jooq.exception.DataAccessException> { call, exception ->
+        exception<DataAccessException> { call, exception ->
 
             println("Database error occurred - $exception")
 
@@ -50,6 +54,9 @@ fun Application.configureStatusPages(){
 
 
         exception<Throwable> { call, exception ->
+
+            logger.error("Unhandled exception ${exception.message}", exception)
+
             call.respond(
                 HttpStatusCode.InternalServerError,
                 ErrorResponse(error = "Internal server error. Please Try again later.", code = "INTERNAL_ERROR")

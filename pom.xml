@@ -48,7 +48,12 @@
             <artifactId>ktor-server-config-yaml-jvm</artifactId>
             <version>${ktor_version}</version>
         </dependency>
-
+        <!-- APACHE KAFKA -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>3.7.0</version>
+        </dependency>
         <!-- SERIALIZATION LIBRARY (JSON) -->
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
@@ -209,19 +214,10 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- 1. Flyway Maven Plugin (Накатывает миграции перед сборкой) -->
             <plugin>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-maven-plugin</artifactId>
                 <version>10.8.1</version>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>migrate</goal>
-                        </goals>
-                    </execution>
-                </executions>
                 <configuration>
                     <url>jdbc:postgresql://localhost:5433/kyc_db</url>
                     <user>kyc_user</user>
@@ -232,7 +228,7 @@
                 </configuration>
             </plugin>
 
-            <!-- 2. JOOQ Codegen Plugin (Генерирует Java/Kotlin классы) -->
+            <!--  JOOQ Codegen Plugin (Генерирует Java/Kotlin классы) -->
             <plugin>
                 <groupId>org.jooq</groupId>
                 <artifactId>jooq-codegen-maven</artifactId>

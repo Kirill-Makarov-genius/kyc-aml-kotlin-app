@@ -10,7 +10,7 @@ fun KycRequestsRecord.toModel(): KycRequest {
         firstName = this.firstName ?: error("First name is missing"),
         lastName = this.lastName ?: error("Last name is missing"),
         passportNumber = this.passportNumber ?: error("Passport is missing"),
-        status = KycStatus.valueOf(this.status ?: KycStatus.PENDING.name),
+        status = KycStatus.valueOf(this.status ?: error("Passport is missing")),
         riskScore = this.riskScore ?: 0,
         internalComment = this.internalComment
     )

@@ -2,6 +2,8 @@ package com.study
 
 import org.slf4j.event.Level
 import com.study.config.DatabaseFactory
+import com.study.kafka.KycConsumer
+import com.study.kafka.KycProducer
 import com.study.plugins.configureMonitoring
 import com.study.plugins.configureRouting
 import com.study.plugins.configureSerialization
@@ -34,11 +36,25 @@ fun Application.module() {
 
     val dsl = DatabaseFactory.init()
     val repository = KycRepository(dsl)
-    val service = KycService(repository)
+
+    // Apache Kafka
+    val bootstrapServers = System.getenv("KAFKA_URL") ?: "localhost:9094"
+    log.info("Connecting to Kafka at: $bootstrapServers")
+
+    val producer = KycProducer(bootstrapServers)
+
+    val service = KycService(repository, producer)
+
+    val consumer = KycConsumer(bootstrapServers, service)
+    val consumerJob = consumer.start()
+    log.info("KYC AML Worker (Kafka Consumer) started successfully")
+
 
     configureMonitoring()
     configureValidation()
     configureStatusPages()
     configureSerialization()
     configureRouting(service)
+
+
 }

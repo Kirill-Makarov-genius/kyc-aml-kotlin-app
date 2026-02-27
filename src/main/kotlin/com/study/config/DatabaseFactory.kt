@@ -2,13 +2,16 @@ package com.study.config
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import org.flywaydb.core.Flyway
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
+import org.slf4j.LoggerFactory
 
 object DatabaseFactory {
 
     private var dataSource: HikariDataSource? = null
+    private val log = LoggerFactory.getLogger(javaClass)
 
     fun init(): DSLContext{
         val config = HikariConfig().apply {
@@ -23,6 +26,14 @@ object DatabaseFactory {
             validate()
         }
         dataSource = HikariDataSource(config)
+
+        log.info("Running Flyway migrations...")
+        Flyway.configure()
+            .dataSource(dataSource)
+            .locations("classpath:db/migration")
+            .load()
+            .migrate()
+        log.info("Flyway migrations finished successfully")
 
         return DSL.using(dataSource, SQLDialect.POSTGRES)
     }
