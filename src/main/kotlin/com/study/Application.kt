@@ -45,7 +45,7 @@ fun Application.module() {
 
     val service = KycService(repository, producer)
 
-    val consumer = KycConsumer(bootstrapServers, service)
+    val consumer = KycConsumer(bootstrapServers, service, producer)
     val consumerJob = consumer.start()
     log.info("KYC AML Worker (Kafka Consumer) started successfully")
 

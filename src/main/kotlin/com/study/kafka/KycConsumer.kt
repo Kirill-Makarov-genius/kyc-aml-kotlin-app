@@ -2,11 +2,14 @@ package com.study.kafka
 
 import com.study.model.KycBatchItem
 import com.study.service.KycService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -16,7 +19,8 @@ import java.time.Duration
 
 class KycConsumer(
     bootstrapServers: String,
-    private val kycService: KycService
+    private val kycService: KycService,
+    private val producer: KycProducer
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -50,13 +54,18 @@ class KycConsumer(
 
                 log.info("Received batch of {} records", records.count())
                 val batchRequests = mutableListOf<KycBatchItem>()
+
                 for (record in records){
-                    try{
                     // Get requestId from kafka message, calculate it risk score and add to batch
-                        val requestId = record.value()
-                        batchRequests.add(kycService.calculateAMLRiskScore(requestId))
+                    val requestId = record.value()
+                    try{
+                        val checkedRequest = kycService.calculateAMLRiskScore(requestId)
+                        batchRequests.add(checkedRequest)
+
                     } catch (e: Exception){
                         log.error("FAILED to process record {}. Sending to DLQ. ERROR: {}", record.value(), e.message)
+
+                        producer.sendToDlq(requestId, requestId, e.message ?: "Unknown Error during processing")
                     }
                 }
 
@@ -65,10 +74,15 @@ class KycConsumer(
                 consumer.commitSync()
                 log.info("Batch processed and commited")
             }
+        } catch (e: CancellationException) {
+            log.info("Consumer coroutine is being cancelled")
         } catch (e: Exception){
             log.error("Fatal error in consumer", e)
         } finally {
-            consumer.close()
+            withContext(NonCancellable) {
+                consumer.close()
+                log.info("Kafka consumer connection closed")
+            }
         }
     }
     fun stop(){

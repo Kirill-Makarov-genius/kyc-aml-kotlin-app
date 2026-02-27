@@ -48,6 +48,7 @@ class KycProducer(bootstrapServers: String){
         // Using requestId as a key for splitting message on partitions
         val record = ProducerRecord("kyc.requests", requestId, requestId)
 
+
         producer.send(record) { metadata, exception ->
             if (exception != null){
                 log.error("Failed to send message to Kafka: {}", exception.message)
@@ -58,6 +59,24 @@ class KycProducer(bootstrapServers: String){
             }
         }
     }
+
+    fun sendToDlq(requestId: String, originalValue: String, errorMessage: String){
+        val record = ProducerRecord("kyc.requests.dlq", requestId, requestId)
+
+        record.headers().add("x-error-message", errorMessage.toByteArray())
+        record.headers().add("x-failed-at", System.currentTimeMillis().toString().toByteArray())
+
+        producer.send(record){ metadata, ex ->
+            if (ex != null){
+                log.error("Failed send to DLQ {}", ex.message)
+            }else{
+                log.warn("Message sent to DLQ: {} at offset {}", requestId, metadata.offset())
+            }
+        }
+
+    }
+
+
     fun close(){
         producer.close()
     }
