@@ -7,6 +7,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
 import org.slf4j.LoggerFactory
 import java.util.Properties
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 class KycProducer(bootstrapServers: String){
     private val log = LoggerFactory.getLogger(javaClass)
@@ -44,7 +47,8 @@ class KycProducer(bootstrapServers: String){
 
     }
 
-    fun sendRequestCreated(requestId: String){
+    suspend fun sendRequestForCalculateRiskScore(requestId: String) = suspendCoroutine{ continuation ->
+
         // Using requestId as a key for splitting message on partitions
         val record = ProducerRecord("kyc.requests", requestId, requestId)
 
@@ -52,10 +56,12 @@ class KycProducer(bootstrapServers: String){
         producer.send(record) { metadata, exception ->
             if (exception != null){
                 log.error("Failed to send message to Kafka: {}", exception.message)
+                continuation.resumeWithException(exception)
             }
             else{
                 log.info("Message sent to topic {} partition {} with offset {}",
                     metadata.topic(), metadata.partition(), metadata.offset())
+                continuation.resume(metadata)
             }
         }
     }

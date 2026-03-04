@@ -9,7 +9,9 @@ import com.study.plugins.configureRouting
 import com.study.plugins.configureSerialization
 import com.study.plugins.configureStatusPages
 import com.study.plugins.configureValidation
+import com.study.repository.KycAuditRepository
 import com.study.repository.KycRepository
+import com.study.service.KycAuditService
 import com.study.service.KycService
 import io.ktor.server.application.*
 import io.ktor.server.engine.embeddedServer
@@ -35,17 +37,18 @@ fun Application.module() {
     }
 
     val dsl = DatabaseFactory.init()
-    val repository = KycRepository(dsl)
-
+    val kycRepository = KycRepository(dsl)
+    val kycAuditRepository = KycAuditRepository(dsl)
     // Apache Kafka
     val bootstrapServers = System.getenv("KAFKA_URL") ?: "localhost:9094"
     log.info("Connecting to Kafka at: $bootstrapServers")
 
     val producer = KycProducer(bootstrapServers)
 
-    val service = KycService(repository, producer)
+    val kycService = KycService(kycRepository, producer)
+    val kycAuditService = KycAuditService(kycAuditRepository)
 
-    val consumer = KycConsumer(bootstrapServers, service, producer)
+    val consumer = KycConsumer(bootstrapServers, kycService, producer)
     val consumerJob = consumer.start()
     log.info("KYC AML Worker (Kafka Consumer) started successfully")
 
@@ -54,7 +57,10 @@ fun Application.module() {
     configureValidation()
     configureStatusPages()
     configureSerialization()
-    configureRouting(service)
+    configureRouting(
+        kycService,
+        kycAuditService
+    )
 
 
 }

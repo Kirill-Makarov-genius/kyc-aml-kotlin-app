@@ -17,6 +17,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import javax.naming.ServiceUnavailableException
 
 class KycService (private val repository: KycRepository, private val producer: KycProducer){
 
@@ -39,12 +40,26 @@ class KycService (private val repository: KycRepository, private val producer: K
         val savedRequest = repository.save(request)
 
         // Send event to kafka using our producer
-        producer.sendRequestCreated(savedRequest.id)
+        producer.sendRequestForCalculateRiskScore(savedRequest.id)
         log.info("Request {} sent to Kafka for AML processing", savedRequest.id)
 
         return savedRequest
 
     }
+
+    suspend fun refreshRiskScore(requestId: String): String{
+        log.info("Started recalculating riskScore of request - $requestId")
+        try {
+            producer.sendRequestForCalculateRiskScore(requestId)
+        }
+        catch (e: Exception){
+            log.error("Kafka integration failed: ", e)
+            throw ServiceUnavailableException("Try again later")
+        }
+        log.info("Message for calculation riskScore of $requestId sent successfully")
+        return requestId
+    }
+
 
     suspend fun getAllRequests(): List<KycRequest>{
         return repository.findAll()

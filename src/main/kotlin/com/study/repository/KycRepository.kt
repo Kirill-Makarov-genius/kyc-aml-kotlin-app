@@ -5,6 +5,7 @@ import com.study.generated.tables.references.KYC_REQUESTS
 import com.study.mapper.toModel
 import com.study.model.KycBatchItem
 import com.study.model.KycRequest
+import com.study.model.KycRequestWithHistory
 import com.study.model.KycStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -109,6 +110,9 @@ class KycRepository(private val dsl: DSLContext){
 
         }
     }
+
+
+
 
 
 
